@@ -1,0 +1,854 @@
+<!DOCTYPE html> 
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажёр карточек - Нидерландский язык</title>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --light-grey: #f0f0f0;
+            --white: #ffffff;
+            --dark-text: #333;
+            --know-color: #28a745;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            display: flex; flex-direction: column; padding: 20px; color: var(--dark-text);
+        }
+        .container { max-width: 800px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .header { background: var(--white); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
+        .lang-selector { position: absolute; top: 15px; right: 15px; display: flex; gap: 5px; background-color: var(--light-grey); padding: 5px; border-radius: 8px; }
+        .lang-btn { background: none; border: none; padding: 5px 10px; cursor: pointer; border-radius: 5px; font-weight: bold; transition: background-color 0.2s; }
+        .lang-btn.active { background-color: var(--primary-color); color: var(--white); }
+        .header h1 { font-size: 24px; color: var(--primary-color); margin-bottom: 15px; padding-right: 100px; }
+        .deck-selector { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
+
+        .deck-checkbox {
+            -webkit-tap-highlight-color: transparent;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 10px;  /* Увеличиваем область нажатия */
+            display: flex;
+            align-items: center;
+            background: var(--white);
+            border-radius: 8px;
+            margin: 5px 0;
+        }
+
+        .deck-checkbox input[type="checkbox"] {
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            border: 2px solid var(--primary-color);
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .deck-checkbox input[type="checkbox"]:checked {
+            background-color: var(--primary-color);
+        }
+
+        .deck-checkbox input[type="checkbox"]:checked::after {
+            content: '✓';
+            color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+        }
+
+        .header-button { background: var(--primary-color); color: var(--white); border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: background-color 0.3s; }
+        .header-button:hover { background: #5a6fd8; }
+        .hidden { display: none !important; }
+        .controls { background: var(--white); padding: 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
+        .active-topics { font-size: 14px; color: #666; text-align: center; min-height: 20px; }
+        .active-topics strong { color: var(--primary-color); }
+        .control-buttons { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .toggle-group { display: flex; gap: 15px; align-items: center; }
+        .toggle-btn { background: var(--light-grey); border: 2px solid #ddd; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        .toggle-btn.active { background: var(--primary-color); color: var(--white); border-color: var(--primary-color); }
+        .progress { text-align: center; font-size: 16px; font-weight: 600; color: var(--primary-color); }
+        .card-container { perspective: 1000px; min-height: 400px; display: flex; align-items: center; justify-content: center; }
+        .card {
+            width: 100%; max-width: 600px; height: 400px; position: relative;
+            transform-style: preserve-3d; transition: transform 0.6s; cursor: pointer;
+            perspective: 1000px;
+        }
+        .card.flipped { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 40px; border-radius: 20px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3); text-align: center;
+            background: var(--white);
+            overflow: hidden;
+        }
+        .card-front { background: var(--white); }
+        .card-back { background: var(--primary-color); color: var(--white); transform: rotateY(180deg); }
+        .card-text { font-size: 36px; font-weight: 700; margin-bottom: 10px; }
+        .card-transcription { font-size: 20px; color: #999; font-weight: 400; margin-bottom: 20px; }
+        .card-translation { font-size: 32px; font-weight: 600; margin-bottom: 15px; }
+        .card-note { font-size: 16px; opacity: 0.9; font-style: italic; max-width: 80%; }
+        .card-indicator {
+            position: absolute; top: 15px; right: 15px; z-index: 40;
+            padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            backface-visibility: hidden;
+        }
+        .card-face.card-front .card-indicator {
+            background: var(--white);
+            color: var(--primary-color);
+        }
+        .card-face.card-back .card-indicator {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+        .card-know-btn {
+            position: absolute; top: 15px; left: 15px; z-index: 50;
+            background: var(--know-color); color: var(--white);
+            border: none; border-radius: 20px; padding: 5px 12px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: background-color 0.2s, opacity 0.3s 0.3s; /* плавное исчезновение после переворота */
+            backface-visibility: hidden !important;
+            transform: none !important;
+            pointer-events: auto !important;
+            opacity: 1;
+            visibility: visible;
+        }
+        .card-know-btn:hover { background: #218838; }
+        /*
+            Блок ниже избыточен, так как кнопка "Знаю" всегда находится только на лицевой стороне карточки.
+            Если после всех исправлений всё работает корректно, этот блок можно удалить для чистоты кода.
+        .card-back .card-know-btn { display: none; }
+        */
+        .card.flipped .card-know-btn {
+            opacity: 0;
+            pointer-events: none !important;
+            visibility: hidden;
+            transition-delay: 0.3s, 0s; /* opacity исчезает после половины flip (0.6s/2) */
+        }
+        .navigation { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 20px; }
+        .nav-btn {
+            background: var(--white); border: none; padding: 15px 30px; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); transition: all 0.3s; color: var(--primary-color);
+        }
+        .nav-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 20px rgba(0,0,0,0.3); }
+        .nav-btn:active { transform: translateY(0); }
+        .nav-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .empty-state { background: var(--white); padding: 60px 40px; border-radius: 20px; text-align: center; box-shadow: 0 15px 50px rgba(0,0,0,0.3); }
+        .empty-state h2 { color: var(--primary-color); margin-bottom: 15px; font-size: 28px; }
+        .empty-state p { color: #666; font-size: 16px; }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 20px; } .card { height: 350px; } .card-text { font-size: 28px; }
+            .card-translation { font-size: 24px; } .control-buttons { flex-direction: column; }
+            .toggle-group { width: 100%; justify-content: center; } .navigation { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="lang-selector" id="langSelector">
+                <button class="lang-btn" onclick="setLanguage('ru')">RU</button>
+                <button class="lang-btn" onclick="setLanguage('en')">EN</button>
+                <button class="lang-btn" onclick="setLanguage('nl')">NL</button>
+            </div>
+            <h1 id="main-title"></h1>
+
+            <div class="deck-selector-container">
+                <div class="deck-selector" id="deckSelector"></div>
+                <button class="header-button hidden" id="confirmTopicsBtn"></button>
+            </div>
+            <button class="header-button hidden" id="toggleTopicsBtn"></button>
+        </div>
+
+        <div class="controls">
+            <div class="active-topics" id="activeTopics"></div>
+            <div class="control-buttons">
+                <div class="toggle-group">
+                    <button class="toggle-btn" id="shuffleBtn" onclick="toggleShuffle()"></button>
+                    <button class="toggle-btn" id="loopBtn" onclick="toggleLoop()"></button>
+                    <button class="toggle-btn active" id="directionBtn" onclick="toggleDirection()">NL → RU</button>
+                </div>
+                <div class="progress" id="progress"></div>
+            </div>
+        </div>
+
+        <div class="card-container" id="cardContainer"></div>
+
+        <div class="navigation" id="navigation" style="display: none;">
+            <button class="nav-btn" onclick="prevCard()" id="prevBtn"></button>
+            <button class="nav-btn" onclick="nextCard()" id="nextBtn"></button>
+        </div>
+    </div>
+
+    <script>
+        // Блок 3: Обновленная структура данных
+        const decks = {
+            verbs: {
+                title: { ru: "Глаголы", en: "Verbs", nl: "Werkwoorden" },
+                cards: [
+                    { id: "v1", front: "zijn", back: "быть", transcr: { ru: "[зэйн]", en: "[zayn]", nl: "[zijn]" }, note: { ru: "неправ: ben/is - was - geweest", en: "irreg: ben/is - was - geweest", nl: "onreg: ben/is - was - geweest" }},
+                    { id: "v2", front: "hebben", back: "иметь", transcr: { ru: "[хэ́ббэн]", en: "[hebben]", nl: "[hebben]" }, note: { ru: "неправ: heb/heeft - had - gehad", en: "irreg: heb/heeft - had - gehad", nl: "onreg: heb/heeft - had - gehad" }},
+                    { id: "v3", front: "gaan", back: "идти, ехать", transcr: { ru: "[хаан]", en: "[khaan]", nl: "[gaan]" }, note: { ru: "неправ: ga/gaat - ging - gegaan", en: "irreg: ga/gaat - ging - gegaan", nl: "onreg: ga/gaat - ging - gegaan" }},
+                    { id: "v4", front: "komen", back: "приходить", transcr: { ru: "[ко́омэн]", en: "[kohmen]", nl: "[komen]" }, note: { ru: "неправ: kom/komt - kwam - gekomen", en: "irreg: kom/komt - kwam - gekomen", nl: "onreg: kom/komt - kwam - gekomen" }},
+                    { id: "v5", front: "doen", back: "делать", transcr: { ru: "[дуун]", en: "[doon]", nl: "[doen]" }, note: { ru: "неправ: doe/doet - deed - gedaan", en: "irreg: doe/doet - deed - gedaan", nl: "onreg: doe/doet - deed - gedaan" }},
+                    { id: "v6", front: "zeggen", back: "сказать", transcr: { ru: "[зэ́ххэн]", en: "[zeggen]", nl: "[zeggen]" }, note: { ru: "неправ: zeg - zei - gezegd", en: "irreg: zeg - zei - gezegd", nl: "onreg: zeg - zei - gezegd" }},
+                    { id: "v7", front: "willen", back: "хотеть", transcr: { ru: "[ви́лэн]", en: "[willen]", nl: "[willen]" }, note: { ru: "неправ: wil - wilde/wou - gewild", en: "irreg: wil - wilde/wou - gewild", nl: "onreg: wil - wilde/wou - gewild" }},
+                    { id: "v8", front: "kunnen", back: "мочь", transcr: { ru: "[кю́нэн]", en: "[kunnen]", nl: "[kunnen]" }, note: { ru: "неправ: kan - kon - gekund", en: "irreg: kan - kon - gekund", nl: "onreg: kan - kon - gekund" }},
+                    { id: "v9", front: "moeten", back: "быть должным", transcr: { ru: "[му́тэн]", en: "[moeten]", nl: "[moeten]" }, note: { ru: "прав: moet - moest - gemoeten", en: "reg: moet - moest - gemoeten", nl: "regel: moet - moest - gemoeten" }},
+                    { id: "v10", front: "mogen", back: "мочь (иметь разрешение)", transcr: { ru: "[мо́хэн]", en: "[mogen]", nl: "[mogen]" }, note: { ru: "неправ: mag - mocht - gemogen", en: "irreg: mag - mocht - gemogen", nl: "onreg: mag - mocht - gemogen" }},
+                    { id: "v11", front: "zien", back: "видеть", transcr: { ru: "[зиин]", en: "[zeen]", nl: "[zien]" }, note: { ru: "неправ: zie - zag - gezien", en: "irreg: zie - zag - gezien", nl: "onreg: zie - zag - gezien" }},
+                    { id: "v12", front: "staan", back: "стоять", transcr: { ru: "[стаан]", en: "[staan]", nl: "[staan]" }, note: { ru: "неправ: sta - stond - gestaan", en: "irreg: sta - stond - gestaan", nl: "onreg: sta - stond - gestaan" }},
+                    { id: "v13", front: "lopen", back: "ходить, гулять", transcr: { ru: "[ло́пэн]", en: "[lopen]", nl: "[lopen]" }, note: { ru: "неправ: loop - liep - gelopen", en: "irreg: loop - liep - gelopen", nl: "onreg: loop - liep - gelopen" }},
+                    { id: "v14", front: "kopen", back: "покупать", transcr: { ru: "[ко́пэн]", en: "[kopen]", nl: "[kopen]" }, note: { ru: "неправ: koop - kocht - gekocht", en: "irreg: koop - kocht - gekocht", nl: "onreg: koop - kocht - gekocht" }},
+                    { id: "v15", front: "werken", back: "работать", transcr: { ru: "[вэ́ркэн]", en: "[werken]", nl: "[werken]" }, note: { ru: "прав: werk - werkte - gewerkt", en: "reg: werk - werkte - gewerkt", nl: "regel: werk - werkte - gewerkt" }},
+                    { id: "v16", front: "kijken", back: "смотреть", transcr: { ru: "[ка́йкэн]", en: "[kijken]", nl: "[kijken]" }, note: { ru: "неправ: kijk - keek - gekeken", en: "irreg: kijk - keek - gekeken", nl: "onreg: kijk - keek - gekeken" }},
+                    { id: "v17", front: "weten", back: "знать", transcr: { ru: "[вэ́тэн]", en: "[weten]", nl: "[weten]" }, note: { ru: "неправ: weet - wist - geweten", en: "irreg: weet - wist - geweten", nl: "onreg: weet - wist - geweten" }},
+                    { id: "v18", front: "eten", back: "есть, кушать", transcr: { ru: "[э́тэн]", en: "[eten]", nl: "[eten]" }, note: { ru: "неправ: eet - at - gegeten", en: "irreg: eet - at - gegeten", nl: "onreg: eet - at - gegeten" }},
+                    { id: "v19", front: "drinken", back: "пить", transcr: { ru: "[дри́нкэн]", en: "[drinken]", nl: "[drinken]" }, note: { ru: "неправ: drink - dronk - gedronken", en: "irreg: drink - dronk - gedronken", nl: "onreg: drink - dronk - gedronken" }},
+                    { id: "v20", front: "geven", back: "давать", transcr: { ru: "[хе́вэн]", en: "[geven]", nl: "[geven]" }, note: { ru: "неправ: geef - gaf - gegeven", en: "irreg: geef - gaf - gegeven", nl: "onreg: geef - gaf - gegeven" }}
+                ]
+            },
+            diphthongs: {
+                title: { ru: "Дифтонги и диграфы", en: "Diphthongs and Digraphs", nl: "Tweeklanken en Digrafen" },
+                cards: [
+                    { id: "d1", front: "ui", back: "эй", transcr: { ru: "[ёй]", en: "[öy]", nl: "[ui]" }, note: { ru: "как в слове huis", en: "as in huis", nl: "zoals in huis" }},
+                    { id: "d2", front: "ij/ei", back: "эй", transcr: { ru: "[эй]", en: "[ay]", nl: "[ij/ei]" }, note: { ru: "как в слове zijn", en: "as in zijn", nl: "zoals in zijn" }},
+                    { id: "d3", front: "ou/au", back: "ау", transcr: { ru: "[ау]", en: "[aw]", nl: "[ou/au]" }, note: { ru: "как в слове koud", en: "as in koud", nl: "zoals in koud" }},
+                    { id: "d4", front: "ie", back: "и (долгое)", transcr: { ru: "[ии]", en: "[ee]", nl: "[ie]" }, note: { ru: "как в слове zien", en: "as in zien", nl: "zoals in zien" }},
+                    { id: "d5", front: "oe", back: "у (долгое)", transcr: { ru: "[уу]", en: "[oo]", nl: "[oe]" }, note: { ru: "как в слове boek", en: "as in boek", nl: "zoals in boek" }},
+                    { id: "d6", front: "eu", back: "ё", transcr: { ru: "[ё]", en: "[ø]", nl: "[eu]" }, note: { ru: "как в слове deur", en: "as in deur", nl: "zoals in deur" }},
+                    { id: "d7", front: "ee", back: "э (долгое)", transcr: { ru: "[ээ]", en: "[ay]", nl: "[ee]" }, note: { ru: "как в слове een", en: "as in een", nl: "zoals in een" }},
+                    { id: "d8", front: "aa", back: "а (долгое)", transcr: { ru: "[аа]", en: "[ah]", nl: "[aa]" }, note: { ru: "как в слове gaan", en: "as in gaan", nl: "zoals in gaan" }},
+                    { id: "d9", front: "oo", back: "о (долгое)", transcr: { ru: "[оо]", en: "[oh]", nl: "[oo]" }, note: { ru: "как в слове groot", en: "as in groot", nl: "zoals in groot" }},
+                    { id: "d10", front: "uu", back: "ю (долгое)", transcr: { ru: "[юю]", en: "[ü]", nl: "[uu]" }, note: { ru: "как в слове muur", en: "as in muur", nl: "zoals in muur" }},
+                    { id: "d11", front: "ch", back: "х", transcr: { ru: "[х]", en: "[kh]", nl: "[ch]" }, note: { ru: "гортанный, как в слове acht", en: "guttural, as in acht", nl: "gutturaal, zoals in acht" }},
+                    { id: "d12", front: "ng", back: "н (носовое)", transcr: { ru: "[н-]", en: "[ng]", nl: "[ng]" }, note: { ru: "как в слове ring", en: "as in ring", nl: "zoals in ring" }},
+                    { id: "d13", front: "sch", back: "сх", transcr: { ru: "[сх]", en: "[skh]", nl: "[sch]" }, note: { ru: "как в слове school", en: "as in school", nl: "zoals in school" }},
+                    { id: "d14", front: "aai", back: "аай", transcr: { ru: "[аай]", en: "[aai]", nl: "[aai]" }, note: { ru: "как в слове saai", en: "as in saai", nl: "zoals in saai" }},
+                    { id: "d15", front: "ooi", back: "оой", transcr: { ru: "[оой]", en: "[ooi]", nl: "[ooi]" }, note: { ru: "как в слове mooi", en: "as in mooi", nl: "zoals in mooi" }},
+                    { id: "d16", front: "eeuw", back: "ээу", transcr: { ru: "[ээу]", en: "[eeuw]", nl: "[eeuw]" }, note: { ru: "как в слове eeuw", en: "as in eeuw", nl: "zoals in eeuw" }},
+                    { id: "d17", front: "ieuw", back: "иу", transcr: { ru: "[иу]", en: "[ieuw]", nl: "[ieuw]" }, note: { ru: "как в слове nieuw", en: "as in nieuw", nl: "zoals in nieuw" }},
+                    { id: "d18", front: "uw", back: "юв", transcr: { ru: "[юв]", en: "[uw]", nl: "[uw]" }, note: { ru: "как в слове uw", en: "as in uw", nl: "zoals in uw" }}
+                ]
+            },
+            nouns: {
+                title: { ru: "Существительные", en: "Nouns", nl: "Zelfstandige naamwoorden" },
+                cards: [
+                    { id: "n1", front: "de tafel", back: "стол", transcr: { ru: "[та́фэл]", en: "[tafel]", nl: "[tafel]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n2", front: "het boek", back: "книга", transcr: { ru: "[бук]", en: "[book]", nl: "[boek]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n3", front: "de stoel", back: "стул", transcr: { ru: "[стул]", en: "[stool]", nl: "[stoel]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n4", front: "het raam", back: "окно", transcr: { ru: "[раам]", en: "[raam]", nl: "[raam]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n5", front: "de deur", back: "дверь", transcr: { ru: "[дёр]", en: "[door]", nl: "[deur]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n6", front: "het water", back: "вода", transcr: { ru: "[ва́тэр]", en: "[water]", nl: "[water]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n7", front: "het brood", back: "хлеб", transcr: { ru: "[броот]", en: "[brood]", nl: "[brood]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n8", front: "de auto", back: "машина", transcr: { ru: "[а́уто]", en: "[auto]", nl: "[auto]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n9", front: "de fiets", back: "велосипед", transcr: { ru: "[фитс]", en: "[feets]", nl: "[fiets]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n10", front: "de stad", back: "город", transcr: { ru: "[стат]", en: "[stat]", nl: "[stad]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n11", front: "het geld", back: "деньги", transcr: { ru: "[хэлт]", en: "[geld]", nl: "[geld]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n12", front: "de vriend", back: "друг", transcr: { ru: "[фринт]", en: "[freend]", nl: "[vriend]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n13", front: "de school", back: "школа", transcr: { ru: "[схоол]", en: "[school]", nl: "[school]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n14", front: "het werk", back: "работа", transcr: { ru: "[вэрк]", en: "[werk]", nl: "[werk]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n15", front: "de winkel", back: "магазин", transcr: { ru: "[ви́нкэл]", en: "[winkel]", nl: "[winkel]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n16", front: "de kamer", back: "комната", transcr: { ru: "[ка́мэр]", en: "[kamer]", nl: "[kamer]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n17", front: "het bed", back: "кровать", transcr: { ru: "[бэт]", en: "[bet]", nl: "[bed]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }},
+                    { id: "n18", front: "de telefoon", back: "телефон", transcr: { ru: "[тэлефо́он]", en: "[telefoon]", nl: "[telefoon]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n19", front: "de tas", back: "сумка", transcr: { ru: "[тас]", en: "[tas]", nl: "[tas]" }, note: { ru: "общий род", en: "common gender", nl: "de-woord" }},
+                    { id: "n20", front: "het eten", back: "еда", transcr: { ru: "[э́тэн]", en: "[eten]", nl: "[eten]" }, note: { ru: "средний род", en: "neuter gender", nl: "het-woord" }}
+                ]
+            },
+            prepositions: {
+                title: { ru: "Предлоги", en: "Prepositions", nl: "Voorzetsels" },
+                cards: [
+                    { id: "p1", front: "in", back: "в", transcr: { ru: "[ин]", en: "[in]", nl: "[in]" }, note: { ru: "местоположение", en: "location", nl: "plaats" }},
+                    { id: "p2", front: "op", back: "на", transcr: { ru: "[оп]", en: "[op]", nl: "[op]" }, note: { ru: "на поверхности", en: "on surface", nl: "op oppervlak" }},
+                    { id: "p3", front: "naar", back: "к, в (движение)", transcr: { ru: "[наар]", en: "[naar]", nl: "[naar]" }, note: { ru: "направление", en: "direction", nl: "richting" }},
+                    { id: "p4", front: "voor", back: "перед, для", transcr: { ru: "[воор]", en: "[voor]", nl: "[voor]" }, note: { ru: "положение/цель", en: "position/purpose", nl: "positie/doel" }},
+                    { id: "p5", front: "met", back: "с", transcr: { ru: "[мэт]", en: "[met]", nl: "[met]" }, note: { ru: "вместе с", en: "together with", nl: "samen met" }},
+                    { id: "p6", front: "van", back: "от, из, о", transcr: { ru: "[фан]", en: "[van]", nl: "[van]" }, note: { ru: "принадлежность", en: "origin/possession", nl: "oorsprong/bezit" }},
+                    { id: "p7", front: "uit", back: "из", transcr: { ru: "[ёйт]", en: "[out]", nl: "[uit]" }, note: { ru: "изнутри", en: "from inside", nl: "van binnen" }},
+                    { id: "p8", front: "onder", back: "под", transcr: { ru: "[о́ндэр]", en: "[onder]", nl: "[onder]" }, note: { ru: "ниже чего-то", en: "below something", nl: "onder iets" }},
+                    { id: "p9", front: "boven", back: "над", transcr: { ru: "[бо́вэн]", en: "[boven]", nl: "[boven]" }, note: { ru: "выше чего-то", en: "above something", nl: "boven iets" }},
+                    { id: "p10", front: "naast", back: "рядом с", transcr: { ru: "[нааст]", en: "[naast]", nl: "[naast]" }, note: { ru: "сбоку от", en: "next to", nl: "naast" }},
+                    { id: "p11", front: "tussen", back: "между", transcr: { ru: "[тю́сэн]", en: "[tussen]", nl: "[tussen]" }, note: { ru: "между двумя объектами", en: "between two objects", nl: "tussen twee objecten" }},
+                    { id: "p12", front: "achter", back: "за, позади", transcr: { ru: "[а́хтэр]", en: "[achter]", nl: "[achter]" }, note: { ru: "позади чего-то", en: "behind something", nl: "achter iets" }},
+                    { id: "p13", front: "door", back: "через, сквозь", transcr: { ru: "[доор]", en: "[door]", nl: "[door]" }, note: { ru: "движение сквозь", en: "movement through", nl: "beweging door" }},
+                    { id: "p14", front: "zonder", back: "без", transcr: { ru: "[зо́ндэр]", en: "[zonder]", nl: "[zonder]" }, note: { ru: "отсутствие чего-то", en: "without something", nl: "zonder iets" }},
+                    { id: "p15", front: "tegen", back: "против, об", transcr: { ru: "[тэ́хэн]", en: "[tegen]", nl: "[tegen]" }, note: { ru: "противодействие/контакт", en: "against/contact", nl: "oppositie/contact" }},
+                    { id: "p16", front: "bij", back: "у, при", transcr: { ru: "[бэй]", en: "[bay]", nl: "[bij]" }, note: { ru: "рядом, в компании", en: "near, at someone's place", nl: "dichtbij, bij iemand" }},
+                    { id: "p17", front: "tot", back: "до", transcr: { ru: "[тот]", en: "[tot]", nl: "[tot]" }, note: { ru: "до определённого момента", en: "until a certain point", nl: "tot een bepaald punt" }},
+                    { id: "p18", front: "tijdens", back: "во время", transcr: { ru: "[та́йдэнс]", en: "[tijdens]", nl: "[tijdens]" }, note: { ru: "в течение периода", en: "during a period", nl: "gedurende een periode" }},
+                    { id: "p19", front: "over", back: "через, о (чём-то)", transcr: { ru: "[о́вэр]", en: "[over]", nl: "[over]" }, note: { ru: "движение/тема", en: "movement/topic", nl: "beweging/onderwerp" }},
+                    { id: "p20", front: "sinds", back: "с (какого-то времени)", transcr: { ru: "[синс]", en: "[sins]", nl: "[sinds]" }, note: { ru: "начало периода", en: "since a point in time", nl: "vanaf een tijdstip" }}
+                ]
+            },
+			pronouns: {
+                title: { ru: "Местоимения", en: "Pronouns", nl: "Voornaamwoorden" },
+                cards: [
+                    // Личные местоимения (Personal Pronouns)
+                    { id: "pr1", front: "ik", back: "я", transcr: { ru: "[ик]", en: "[ik]", nl: "[ik]" }, note: { ru: "1 л. ед.ч. (им.п.)", en: "1st pers. sing. (nom.)", nl: "1e pers. enk. (nom.)" }},
+                    { id: "pr2", front: "jij/je", back: "ты", transcr: { ru: "[йэй/йэ]", en: "[yay/ye]", nl: "[jij/je]" }, note: { ru: "2 л. ед.ч. (им.п.)", en: "2nd pers. sing. (nom.)", nl: "2e pers. enk. (nom.)" }},
+                    { id: "pr3", front: "hij", back: "он", transcr: { ru: "[хэй]", en: "[hay]", nl: "[hij]" }, note: { ru: "3 л. ед.ч. м.р. (им.п.)", en: "3rd pers. sing. masc. (nom.)", nl: "3e pers. enk. mann. (nom.)" }},
+                    { id: "pr4", front: "zij/ze", back: "она", transcr: { ru: "[зэй/зэ]", en: "[zay/ze]", nl: "[zij/ze]" }, note: { ru: "3 л. ед.ч. ж.р. (им.п.)", en: "3rd pers. sing. fem. (nom.)", nl: "3e pers. enk. vr. (nom.)" }},
+                    { id: "pr5", front: "het ('t)", back: "оно", transcr: { ru: "[хэт/т]", en: "[hut/t]", nl: "[het/'t]" }, note: { ru: "3 л. ед.ч. ср.р. (им.п.)", en: "3rd pers. sing. neut. (nom.)", nl: "3e pers. enk. onz. (nom.)" }},
+                    { id: "pr6", front: "wij/we", back: "мы", transcr: { ru: "[вэй/вэ]", en: "[way/we]", nl: "[wij/we]" }, note: { ru: "1 л. мн.ч. (им.п.)", en: "1st pers. pl. (nom.)", nl: "1e pers. mv. (nom.)" }},
+                    { id: "pr7", front: "jullie", back: "вы (мн.ч.)", transcr: { ru: "[йюлли]", en: "[yulli]", nl: "[jullie]" }, note: { ru: "2 л. мн.ч. (им.п.)", en: "2nd pers. pl. (nom.)", nl: "2e pers. mv. (nom.)" }},
+                    { id: "pr8", front: "zij/ze", back: "они", transcr: { ru: "[зэй/зэ]", en: "[zay/ze]", nl: "[zij/ze]" }, note: { ru: "3 л. мн.ч. (им.п.)", en: "3rd pers. pl. (nom.)", nl: "3e pers. mv. (nom.)" }},
+                    { id: "pr9", front: "u", back: "Вы (вежл.)", transcr: { ru: "[у]", en: "[oo]", nl: "[u]" }, note: { ru: "Вежливое (им.п.)", en: "Polite form (nom.)", nl: "Beleefdh. (nom.)" }},
+                    { id: "pr10", front: "mij/me", back: "меня/мне", transcr: { ru: "[мэй/мэ]", en: "[may/me]", nl: "[mij/me]" }, note: { ru: "1 л. ед.ч. (дат./вин.)", en: "1st pers. sing. (dat./acc.)", nl: "1e pers. enk. (dat./acc.)" }},
+                    { id: "pr11", front: "jou/je", back: "тебя/тебе", transcr: { ru: "[йау/йэ]", en: "[yow/ye]", nl: "[jou/je]" }, note: { ru: "2 л. ед.ч. (дат./вин.)", en: "2nd pers. sing. (dat./acc.)", nl: "2e pers. enk. (dat./acc.)" }},
+                    { id: "pr12", front: "hem", back: "его/ему (м.р.)", transcr: { ru: "[хэм]", en: "[hum]", nl: "[hem]" }, note: { ru: "3 л. ед.ч. м.р. (дат./вин.)", en: "3rd pers. sing. masc. (dat./acc.)", nl: "3e pers. enk. mann. (dat./acc.)" }},
+                    { id: "pr13", front: "haar/ze", back: "ее/ей (ж.р.)", transcr: { ru: "[хаар/зэ]", en: "[har/ze]", nl: "[haar/ze]" }, note: { ru: "3 л. ед.ч. ж.р. (дат./вин.)", en: "3rd pers. sing. fem. (dat./acc.)", nl: "3e pers. enk. vr. (dat./acc.)" }},
+                    { id: "pr14", front: "ons", back: "нас/нам", transcr: { ru: "[онс]", en: "[ons]", nl: "[ons]" }, note: { ru: "1 л. мн.ч. (дат./вин.)", en: "1st pers. pl. (dat./acc.)", nl: "1e pers. mv. (dat./acc.)" }},
+                    { id: "pr15", front: "hen/ze", back: "их/им (одуш.)", transcr: { ru: "[хэн/зэ]", en: "[hun/ze]", nl: "[hen/ze]" }, note: { ru: "3 л. мн.ч. (одуш. дат./вин.)", en: "3rd pers. pl. (pers. dat./acc.)", nl: "3e pers. mv. (pers. dat./acc.)" }},
+                    { id: "pr16", front: "hun", back: "их/им (неодуш.)", transcr: { ru: "[хюн]", en: "[hun]", nl: "[hun]" }, note: { ru: "3 л. мн.ч. (неодуш. дат./вин.)", en: "3rd pers. pl. (non-pers. dat./acc.)", nl: "3e pers. mv. (niet-pers. dat./acc.)" }},
+
+                    // Притяжательные местоимения (Possessive Pronouns)
+                    { id: "ppr1", front: "mijn", back: "мой", transcr: { ru: "[мэйн]", en: "[main]", nl: "[mijn]" }, note: { ru: "Мой/моя/мое", en: "My", nl: "Mijn" }},
+                    { id: "ppr2", front: "jouw", back: "твой", transcr: { ru: "[йау]", en: "[yow]", nl: "[jouw]" }, note: { ru: "Твой/твоя/твое", en: "Your (sing.)", nl: "Jouw (enk.)" }},
+                    { id: "ppr3", front: "zijn", back: "его (чей?)", transcr: { ru: "[зэйн]", en: "[zayn]", nl: "[zijn]" }, note: { ru: "Его (м.р./ср.р.)", en: "His/Its", nl: "Zijn" }},
+                    { id: "ppr4", front: "haar", back: "ее (чья?)", transcr: { ru: "[хаар]", en: "[har]", nl: "[haar]" }, note: { ru: "Ее (ж.р.)", en: "Her", nl: "Haar" }},
+                    { id: "ppr5", front: "onze", back: "наш", transcr: { ru: "[онзэ]", en: "[onze]", nl: "[onze]" }, note: { ru: "Наш/наша (общ. р.)", en: "Our (common gender)", nl: "Onze (de-woord)" }},
+                    { id: "ppr6", front: "ons", back: "наше", transcr: { ru: "[онс]", en: "[ons]", nl: "[ons]" }, note: { ru: "Наше (ср. р.)", en: "Our (neuter gender)", nl: "Ons (het-woord)" }},
+                    { id: "ppr7", front: "uw", back: "Ваш (вежл.)", transcr: { ru: "[ув]", en: "[uuv]", nl: "[uw]" }, note: { ru: "Ваш/Ваша/Ваше (вежл.)", en: "Your (polite)", nl: "Uw (beleefdh.)" }},
+
+                    // Указательные местоимения (Demonstrative Pronouns)
+                    { id: "dpr1", front: "deze", back: "этот/эта (близко)", transcr: { ru: "[дэзэ]", en: "[deze]", nl: "[deze]" }, note: { ru: "Этот/эта (de-woord/мн.ч.)", en: "This/These", nl: "Deze (de/mv)" }},
+                    { id: "dpr2", front: "dit", back: "это (близко)", transcr: { ru: "[дит]", en: "[dit]", nl: "[dit]" }, note: { ru: "Это (het-woord)", en: "This (het-woord)", nl: "Dit (het-woord)" }},
+                    { id: "dpr3", front: "die", back: "тот/та (далеко)", transcr: { ru: "[ди]", en: "[dee]", nl: "[die]" }, note: { ru: "Тот/та (de-woord/мн.ч.)", en: "That/Those", nl: "Die (de/mv)" }},
+                    { id: "dpr4", front: "dat", back: "то (далеко)", transcr: { ru: "[дат]", en: "[dat]", nl: "[dat]" }, note: { ru: "То (het-woord)", en: "That (het-woord)", nl: "Dat (het-woord)" }},
+
+                    // Вопросительные местоимения (Interrogative Pronouns)
+                    { id: "ipr1", front: "wie", back: "кто", transcr: { ru: "[ви]", en: "[vee]", nl: "[wie]" }, note: { ru: "Кто", en: "Who", nl: "Wie" }},
+                    { id: "ipr2", front: "wat", back: "что", transcr: { ru: "[ват]", en: "[wat]", nl: "[wat]" }, note: { ru: "Что", en: "What", nl: "Wat" }}
+                ]
+            },
+			adjectives: {
+                title: { ru: "Прилагательные", en: "Adjectives", nl: "Bijvoeglijke naamwoorden" },
+                cards: [
+                    // Размер, возраст, качество (Size, age, quality)
+                    { id: "a1", front: "groot", back: "большой", transcr: { ru: "[хроот]", en: "[groot]", nl: "[groot]" }, note: { ru: "grote/groot", en: "grote/groot", nl: "grote/groot" }},
+                    { id: "a2", front: "klein", back: "маленький", transcr: { ru: "[клэйн]", en: "[kleyn]", nl: "[klein]" }, note: { ru: "kleine/klein", en: "kleine/klein", nl: "kleine/klein" }},
+                    { id: "a3", front: "mooi", back: "красивый", transcr: { ru: "[моой]", en: "[mooy]", nl: "[mooi]" }, note: { ru: "mooie/mooi", en: "mooie/mooi", nl: "mooie/mooi" }},
+                    { id: "a4", front: "nieuw", back: "новый", transcr: { ru: "[ниу]", en: "[new]", nl: "[nieuw]" }, note: { ru: "nieuwe/nieuw", en: "nieuwe/nieuw", nl: "nieuwe/nieuw" }},
+                    { id: "a5", front: "oud", back: "старый", transcr: { ru: "[аут]", en: "[oud]", nl: "[oud]" }, note: { ru: "oude/oud", en: "oude/oud", nl: "oude/oud" }},
+                    { id: "a6", front: "lang", back: "длинный / высокий (о чел.)", transcr: { ru: "[лахн]", en: "[lung]", nl: "[lang]" }, note: { ru: "lange/lang", en: "lange/lang", nl: "lange/lang" }},
+                    { id: "a7", front: "kort", back: "короткий", transcr: { ru: "[корт]", en: "[kort]", nl: "[kort]" }, note: { ru: "korte/kort", en: "korte/kort", nl: "korte/kort" }},
+                    { id: "a8", front: "goed", back: "хороший", transcr: { ru: "[хуут]", en: "[hoot]", nl: "[goed]" }, note: { ru: "goede/goed", en: "goede/goed", nl: "goede/goed" }},
+                    { id: "a9", front: "slecht", back: "плохой", transcr: { ru: "[слэхт]", en: "[sleht]", nl: "[slecht]" }, note: { ru: "slechte/slecht", en: "slechte/slecht", nl: "slechte/slecht" }},
+                    { id: "a10", front: "lekker", back: "вкусный / приятный", transcr: { ru: "[лэкэр]", en: "[lekker]", nl: "[lekker]" }, note: { ru: "lekker (не изменяется)", en: "lekker (not inflected)", nl: "lekker (onverbuigbaar)" }},
+
+                    // Эмоции и состояния (Emotions and states)
+                    { id: "a11", front: "blij", back: "счастливый, довольный", transcr: { ru: "[блэй]", en: "[bley]", nl: "[blij]" }, note: { ru: "blije/blij", en: "blije/blij", nl: "blije/blij" }},
+                    { id: "a12", front: "boos", back: "злой, сердитый", transcr: { ru: "[боос]", en: "[bohs]", nl: "[boos]" }, note: { ru: "boze/boos", en: "boze/boos", nl: "boze/boos" }},
+                    { id: "a13", front: "moe", back: "усталый", transcr: { ru: "[му]", en: "[moo]", nl: "[moe]" }, note: { ru: "moe (не изменяется)", en: "moe (not inflected)", nl: "moe (onverbuigbaar)" }},
+                    { id: "a14", front: "ziek", back: "больной", transcr: { ru: "[зик]", en: "[zeek]", nl: "[ziek]" }, note: { ru: "zieke/ziek", en: "zieke/ziek", nl: "zieke/ziek" }},
+                    { id: "a15", front: "vrij", back: "свободный", transcr: { ru: "[фрэй]", en: "[frey]", nl: "[vrij]" }, note: { ru: "vrije/vrij", en: "vrije/vrij", nl: "vrije/vrij" }},
+                    { id: "a16", front: "druk", back: "занятой / оживленный", transcr: { ru: "[дрюк]", en: "[druk]", nl: "[druk]" }, note: { ru: "drukke/druk", en: "drukke/druk", nl: "drukke/druk" }},
+
+                    // Характеристики (Characteristics)
+                    { id: "a17", front: "makkelijk", back: "легкий, простой", transcr: { ru: "[маккэлык]", en: "[makuluk]", nl: "[makkelijk]" }, note: { ru: "makkelijke/makkelijk", en: "makkelijke/makkelijk", nl: "makkelijke/makkelijk" }},
+                    { id: "a18", front: "moeilijk", back: "трудный, сложный", transcr: { ru: "[муйлык]", en: "[mooyluk]", nl: "[moeilijk]" }, note: { ru: "moeilijke/moeilijk", en: "moeilijke/moeilijk", nl: "moeilijke/moeilijk" }},
+                    { id: "a19", front: "belangrijk", back: "важный", transcr: { ru: "[бэлахнрэйк]", en: "[bulungrayk]", nl: "[belangrijk]" }, note: { ru: "belangrijke/belangrijk", en: "belangrijke/belangrijk", nl: "belangrijke/belangrijk" }},
+                    { id: "a20", front: "heel", back: "целый", transcr: { ru: "[хэйл]", en: "[hayl]", nl: "[heel]" }, note: { ru: "hele/heel", en: "hele/heel", nl: "hele/heel" }},
+                    { id: "a21", front: "duur", back: "дорогой (по цене)", transcr: { ru: "[дюр]", en: "[dour]", nl: "[duur]" }, note: { ru: "dure/duur", en: "dure/duur", nl: "dure/duur" }},
+                    { id: "a22", front: "goedkoop", back: "дешевый", transcr: { ru: "[хууткооп]", en: "[hootkohp]", nl: "[goedkoop]" }, note: { ru: "goedkope/goedkoop", en: "goedkope/goedkoop", nl: "goedkope/goedkoop" }},
+                    { id: "a23", front: "warm", back: "теплый, жаркий", transcr: { ru: "[варм]", en: "[warm]", nl: "[warm]" }, note: { ru: "warme/warm", en: "warme/warm", nl: "warme/warm" }},
+                    { id: "a24", front: "koud", back: "холодный", transcr: { ru: "[каут]", en: "[koud]", nl: "[koud]" }, note: { ru: "koude/koud", en: "koude/koud", nl: "koude/koud" }}
+                ]
+            },
+			adverbs: {
+                title: { ru: "Наречия", en: "Adverbs", nl: "Bijwoorden" },
+                cards: [
+                    // Наречия места (Adverbs of place)
+                    { id: "adv1", front: "hier", back: "здесь", transcr: { ru: "[хир]", en: "[here]", nl: "[hier]" }, note: { ru: "место (близко)", en: "location (near)", nl: "plaats (dichtbij)" }},
+                    { id: "adv2", front: "daar", back: "там", transcr: { ru: "[даар]", en: "[daar]", nl: "[daar]" }, note: { ru: "место (далеко)", en: "location (far)", nl: "plaats (verweg)" }},
+                    { id: "adv7", front: "binnen", back: "внутри", transcr: { ru: "[биннэн]", en: "[bin-nen]", nl: "[binnen]" }, note: { ru: "место", en: "location", nl: "plaats" }},
+                    { id: "adv8", front: "buiten", back: "снаружи", transcr: { ru: "[баутэн]", en: "[bow-ten]", nl: "[buiten]" }, note: { ru: "место", en: "location", nl: "plaats" }},
+                    { id: "adv9", front: "ergens", back: "где-то", transcr: { ru: "[эргэнс]", en: "[ergens]", nl: "[ergens]" }, note: { ru: "место", en: "location", nl: "plaats" }},
+                    { id: "adv10", front: "nergens", back: "нигде", transcr: { ru: "[нэрхэнс]", en: "[ner-ghens]", nl: "[nergens]" }, note: { ru: "место", en: "location", nl: "plaats" }},
+                    { id: "adv11", front: "overal", back: "везде", transcr: { ru: "[оовэрал]", en: "[o-ver-al]", nl: "[overal]" }, note: { ru: "место", en: "location", nl: "plaats" }},
+
+                    // Наречия времени (Adverbs of time)
+                    { id: "adv3", front: "nu", back: "сейчас", transcr: { ru: "[ню]", en: "[nu]", nl: "[nu]" }, note: { ru: "время", en: "time", nl: "tijd" }},
+                    { id: "adv12", front: "straks", back: "позже / вот-вот", transcr: { ru: "[стракс]", en: "[straks]", nl: "[straks]" }, note: { ru: "время", en: "time", nl: "tijd" }},
+                    { id: "adv13", front: "gisteren", back: "вчера", transcr: { ru: "[хистэрэн]", en: "[ghis-te-ren]", nl: "[gisteren]" }, note: { ru: "время", en: "time", nl: "tijd" }},
+                    { id: "adv14", front: "vandaag", back: "сегодня", transcr: { ru: "[фандаах]", en: "[fan-daagh]", nl: "[vandaag]" }, note: { ru: "время", en: "time", nl: "tijd" }},
+                    { id: "adv15", front: "morgen", back: "завтра", transcr: { ru: "[моргэн]", en: "[mor-ghen]", nl: "[morgen]" }, note: { ru: "время", en: "time", nl: "tijd" }},
+                    { id: "adv16", front: "altijd", back: "всегда", transcr: { ru: "[алтэйд]", en: "[al-tijd]", nl: "[altijd]" }, note: { ru: "время/частота", en: "time/frequency", nl: "tijd/frequentie" }},
+                    { id: "adv17", front: "nooit", back: "никогда", transcr: { ru: "[ноот]", en: "[noot]", nl: "[nooit]" }, note: { ru: "время/частота", en: "time/frequency", nl: "tijd/frequentie" }},
+
+                    // Наречия образа действия (Adverbs of manner)
+                    { id: "adv4", front: "snel", back: "быстро", transcr: { ru: "[снэл]", en: "[snel]", nl: "[snel]" }, note: { ru: "образ действия", en: "manner", nl: "wijze" }},
+                    { id: "adv5", front: "goed", back: "хорошо", transcr: { ru: "[хут]", en: "[good]", nl: "[goed]" }, note: { ru: "образ действия", en: "manner", nl: "wijze" }},
+                    { id: "adv18", front: "langzaam", back: "медленно", transcr: { ru: "[лахнзаам]", en: "[lung-zaam]", nl: "[langzaam]" }, note: { ru: "образ действия", en: "manner", nl: "wijze" }},
+                    { id: "adv19", front: "hard", back: "громко / сильно", transcr: { ru: "[харт]", en: "[hart]", nl: "[hard]" }, note: { ru: "образ действия", en: "manner", nl: "wijze" }},
+                    { id: "adv20", front: "graag", back: "с удовольствием", transcr: { ru: "[храах]", en: "[ghraagh]", nl: "[graag]" }, note: { ru: "образ действия", en: "manner", nl: "wijze" }},
+                    { id: "adv21", front: "samen", back: "вместе", transcr: { ru: "[саамэн]", en: "[saa-men]", nl: "[samen]" }, note: { ru: "образ действия", en: "manner", nl: "wijze" }},
+
+                    // Наречия количества/степени (Adverbs of quantity/degree)
+                    { id: "adv6", front: "veel", back: "много", transcr: { ru: "[фел]", en: "[veel]", nl: "[veel]" }, note: { ru: "количество", en: "quantity", nl: "hoeveelheid" }},
+                    { id: "adv22", front: "weinig", back: "мало", transcr: { ru: "[вэйнэг]", en: "[way-nigh]", nl: "[weinig]" }, note: { ru: "количество", en: "quantity", nl: "hoeveelheid" }},
+                    { id: "adv23", front: "heel", back: "очень", transcr: { ru: "[хэйл]", en: "[hayl]", nl: "[heel]" }, note: { ru: "степень", en: "degree", nl: "graad" }},
+                    { id: "adv24", front: "erg", back: "очень / сильно", transcr: { ru: "[эрх]", en: "[ergh]", nl: "[erg]" }, note: { ru: "степень", en: "degree", nl: "graad" }}
+                ]
+            },
+			numbers: {
+                title: { ru: "Числительные", en: "Numbers", nl: "Telwoorden" },
+                cards: [
+                    // Основные числительные (до 10, для контекста)
+                    { id: "num1", front: "een", back: "один", transcr: { ru: "[эйн]", en: "[een]", nl: "[een]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num2", front: "twee", back: "два", transcr: { ru: "[твэй]", en: "[twee]", nl: "[twee]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num3", front: "drie", back: "три", transcr: { ru: "[дри]", en: "[drie]", nl: "[drie]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num4", front: "vier", back: "четыре", transcr: { ru: "[фир]", en: "[vier]", nl: "[vier]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num5", front: "vijf", back: "пять", transcr: { ru: "[фэйф]", en: "[vijf]", nl: "[vijf]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num7", front: "tien", back: "десять", transcr: { ru: "[тин]", en: "[teen]", nl: "[tien]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    
+                    // Десятки и более (Tens and higher)
+                    { id: "num8", front: "twintig", back: "двадцать", transcr: { ru: "[твинтэг]", en: "[twin-tigh]", nl: "[twintig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num9", front: "dertig", back: "тридцать", transcr: { ru: "[дэртэг]", en: "[der-tigh]", nl: "[dertig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num10", front: "éénendertig", back: "тридцать один", transcr: { ru: "[эйн-эн-дэртэг]", en: "[ay-un-der-tigh]", nl: "[éénendertig]" }, note: { ru: "количественное (обратный порядок: 1 и 30)", en: "cardinal (reverse order: 1 and 30)", nl: "hoofdtelwoord" }},
+                    { id: "num11", front: "veertig", back: "сорок", transcr: { ru: "[фиртэг]", en: "[feer-tigh]", nl: "[veertig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num12", front: "vijftig", back: "пятьдесят", transcr: { ru: "[фэйфтэг]", en: "[fayf-tigh]", nl: "[vijftig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num13", front: "zestig", back: "шестьдесят", transcr: { ru: "[зэстэг]", en: "[zes-tigh]", nl: "[zestig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num14", front: "zeventig", back: "семьдесят", transcr: { ru: "[зэвэнтэг]", en: "[zay-vun-tigh]", nl: "[zeventig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num15", front: "tachtig", back: "восемьдесят", transcr: { ru: "[тахтэх]", en: "[takh-tugh]", nl: "[tachtig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num16", front: "negentig", back: "девяносто", transcr: { ru: "[негэнтэг]", en: "[nay-ghun-tigh]", nl: "[negentig]" }, note: { ru: "количественное", en: "cardinal", nl: "hoofdtelwoord" }},
+                    { id: "num17", front: "honderd", back: "сто", transcr: { ru: "[хондэрт]", en: "[hon-durt]", nl: "[honderd]" }, note: { ru: "количественное (100)", en: "cardinal (100)", nl: "hoofdtelwoord" }},
+                    { id: "num18", front: "honderd en één", back: "сто один", transcr: { ru: "[хондэрт эн эйн]", en: "[hon-durt un ayn]", nl: "[honderd en één]" }, note: { ru: "количественное (101)", en: "cardinal (101)", nl: "hoofdtelwoord" }},
+                    { id: "num19", front: "duizend", back: "тысяча", transcr: { ru: "[даузэнт]", en: "[dow-zunt]", nl: "[duizend]" }, note: { ru: "количественное (1000)", en: "cardinal (1000)", nl: "hoofdtelwoord" }},
+                    
+                    // Порядковые числительные (Ordinal numbers)
+                    { id: "num6", front: "eerste", back: "первый", transcr: { ru: "[эйрстэ]", en: "[eerste]", nl: "[eerste]" }, note: { ru: "порядковое (1-й)", en: "ordinal (1st)", nl: "rangtelwoord" }},
+                    { id: "num20", front: "tweede", back: "второй", transcr: { ru: "[твэйдэ]", en: "[tway-duh]", nl: "[tweede]" }, note: { ru: "порядковое (2-й)", en: "ordinal (2nd)", nl: "rangtelwoord" }},
+                    { id: "num21", front: "derde", back: "третий", transcr: { ru: "[дэрдэ]", en: "[der-duh]", nl: "[derde]" }, note: { ru: "порядковое (3-й)", en: "ordinal (3rd)", nl: "rangtelwoord" }},
+                    { id: "num22", front: "tiende", back: "десятый", transcr: { ru: "[тиндэ]", en: "[teen-duh]", nl: "[tiende]" }, note: { ru: "порядковое (10-й)", en: "ordinal (10th)", nl: "rangtelwoord" }},
+                    { id: "num23", front: "honderdste", back: "сотый", transcr: { ru: "[хондэртстэ]", en: "[hon-durt-stuh]", nl: "[honderdste]" }, note: { ru: "порядковое (100-й)", en: "ordinal (100th)", nl: "rangtelwoord" }}
+                ]
+            },
+            basic: {
+                title: { ru: "Базовая лексика", en: "Basic Vocabulary", nl: "Basiswoordenschat" },
+                cards: [
+                    // Семья и люди (Family and people)
+                    { id: "b1", front: "het huis", back: "дом", transcr: { ru: "[хёйс]", en: "[huys]", nl: "[huis]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+                    { id: "b2", front: "de man", back: "мужчина", transcr: { ru: "[ман]", en: "[man]", nl: "[man]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b3", front: "de vrouw", back: "женщина", transcr: { ru: "[врау]", en: "[vrow]", nl: "[vrouw]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b4", front: "het kind", back: "ребёнок", transcr: { ru: "[кинт]", en: "[kint]", nl: "[kind]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+                    { id: "b6", front: "de vader", back: "отец", transcr: { ru: "[фаадэр]", en: "[faader]", nl: "[vader]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b7", front: "de moeder", back: "мать", transcr: { ru: "[мудэр]", en: "[mooder]", nl: "[moeder]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b8", front: "de vriend", back: "друг", transcr: { ru: "[вринт]", en: "[vrient]", nl: "[vriend]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b9", front: "de naam", back: "имя", transcr: { ru: "[наам]", en: "[naam]", nl: "[naam]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+
+                    // Время и пространство (Time and place)
+                    { id: "b5", front: "de dag", back: "день", transcr: { ru: "[дах]", en: "[dakh]", nl: "[dag]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b10", front: "de nacht", back: "ночь", transcr: { ru: "[нахт]", en: "[nakht]", nl: "[nacht]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b11", front: "de week", back: "неделя", transcr: { ru: "[веек]", en: "[week]", nl: "[week]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b12", front: "het jaar", back: "год", transcr: { ru: "[яар]", en: "[yaar]", nl: "[jaar]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+                    { id: "b13", front: "de stad", back: "город", transcr: { ru: "[стат]", en: "[stat]", nl: "[stad]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b14", front: "het land", back: "страна / земля", transcr: { ru: "[лант]", en: "[lant]", nl: "[land]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+
+                    // Предметы и понятия (Objects and concepts)
+                    { id: "b15", front: "het water", back: "вода", transcr: { ru: "[ваатэр]", en: "[waater]", nl: "[water]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+                    { id: "b16", front: "de koffie", back: "кофе", transcr: { ru: "[коффи]", en: "[koffee]", nl: "[koffie]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b17", front: "het brood", back: "хлеб", transcr: { ru: "[броот]", en: "[broot]", nl: "[brood]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+                    { id: "b18", front: "het geld", back: "деньги", transcr: { ru: "[хелт]", en: "[ghelt]", nl: "[geld]" }, note: { ru: "средний род (het-woord), неисч.", en: "neuter gender (het-woord), uncountable", nl: "het-woord, ontelbaar" }},
+                    { id: "b19", front: "de telefoon", back: "телефон", transcr: { ru: "[тэлэфоон]", en: "[telefoon]", nl: "[telefoon]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b20", front: "de auto", back: "машина", transcr: { ru: "[ауто]", en: "[ow-to]", nl: "[auto]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b21", front: "de deur", back: "дверь", transcr: { ru: "[дюр]", en: "[duur]", nl: "[deur]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b22", front: "de vraag", back: "вопрос", transcr: { ru: "[враах]", en: "[vraagh]", nl: "[vraag]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }},
+                    { id: "b23", front: "het antwoord", back: "ответ", transcr: { ru: "[антвурт]", en: "[antwoord]", nl: "[antwoord]" }, note: { ru: "средний род (het-woord)", en: "neuter gender (het-woord)", nl: "het-woord" }},
+                    { id: "b24", front: "de tijd", back: "время", transcr: { ru: "[тэйд]", en: "[tayd]", nl: "[tijd]" }, note: { ru: "общий род (de-woord)", en: "common gender (de-woord)", nl: "de-woord" }}
+                ]
+            },
+			phrases: {
+                title: { ru: "Ходовые фразы", en: "Common Phrases", nl: "Gebruikelijke zinnen" },
+                cards: [
+                    // Приветствия и прощания (Greetings and goodbyes)
+                    { id: "ph1", front: "Hallo!", back: "Привет!/Здравствуйте!", transcr: { ru: "[халлё]", en: "[hallo]", nl: "[hallo]" }, note: { ru: "Самое обычное приветствие", en: "Most common greeting", nl: "Meest gebruikelijke groet" }},
+                    { id: "ph2", front: "Goedendag!", back: "Добрый день!", transcr: { ru: "[худэндах]", en: "[hoodendakh]", nl: "[goedendag]" }, note: { ru: "Более формальное, в течение дня", en: "More formal, during the day", nl: "Formeler, overdag" }},
+                    { id: "ph3", front: "Goeiemorgen!", back: "Доброе утро!", transcr: { ru: "[хуйэморгэн]", en: "[hoo-ye-mor-ghen]", nl: "[goeiemorgen]" }, note: { ru: "До 12:00", en: "Until 12:00", nl: "Tot 12:00" }},
+                    { id: "ph4", front: "Goeienavond!", back: "Добрый вечер!", transcr: { ru: "[хуйэнаавонт]", en: "[hoo-ye-naavont]", nl: "[goeienavond]" }, note: { ru: "После 18:00", en: "After 18:00", nl: "Na 18:00" }},
+                    { id: "ph5", front: "Tot ziens!", back: "До свидания!", transcr: { ru: "[тот зинс]", en: "[tot zeens]", nl: "[tot ziens]" }, note: { ru: "Букв. 'До увиденья'", en: "Lit. 'Until seeing'", nl: "Tot weerziens" }},
+                    { id: "ph6", front: "Dag!", back: "Пока! / До свидания!", transcr: { ru: "[дах]", en: "[dakh]", nl: "[dag]" }, note: { ru: "И приветствие, и прощание", en: "Both greeting and farewell", nl: "Groet en afscheid" }},
+                    { id: "ph7", front: "Tot straks!", back: "До скорого!", transcr: { ru: "[тот стракс]", en: "[tot straks]", nl: "[tot straks]" }, note: { ru: "Скоро увидимся (сегодня)", en: "See you soon (today)", nl: "Straks weer zien (vandaag)" }},
+
+                    // Основы общения (Basic communication)
+                    { id: "ph8", front: "Hoe gaat het?", back: "Как дела?", transcr: { ru: "[ху хаат хэт]", en: "[hoo gaat hut]", nl: "[hoe gaat het]" }, note: { ru: "Общий вопрос", en: "General question", nl: "Algemene vraag" }},
+                    { id: "ph9", front: "Het gaat goed.", back: "Все хорошо.", transcr: { ru: "[хэт хаат хут]", en: "[hut gaat hoot]", nl: "[het gaat goed]" }, note: { ru: "Положительный ответ", en: "Positive answer", nl: "Positief antwoord" }},
+                    { id: "ph10", front: "Dank je (wel).", back: "Спасибо (тебе).", transcr: { ru: "[данк йэ (вэл)]", en: "[dank ye (wel)]", nl: "[dank je (wel)]" }, note: { ru: "Неформальное 'спасибо'", en: "Informal 'thank you'", nl: "Informele 'bedankt'" }},
+                    { id: "ph11", front: "Dank u wel.", back: "Спасибо Вам.", transcr: { ru: "[данк у вэл]", en: "[dank oo wel]", nl: "[dank u wel]" }, note: { ru: "Формальное 'спасибо'", en: "Formal 'thank you'", nl: "Formele 'bedankt'" }},
+                    { id: "ph12", front: "Graag gedaan.", back: "Пожалуйста (в ответ на спасибо).", transcr: { ru: "[храах хедаан]", en: "[graagh gu-daan]", nl: "[graag gedaan]" }, note: { ru: "Букв. 'Рад сделать'", en: "Lit. 'Gladly done'", nl: "Antwoord op dank" }},
+                    { id: "ph13", front: "Alstublieft.", back: "Пожалуйста (прошу).", transcr: { ru: "[алстюблифт]", en: "[al-stu-bleeft]", nl: "[alstublieft]" }, note: { ru: "Формальное: 'Вот'/ 'Прошу'", en: "Formal: 'Here you are' / 'Please'", nl: "Formeel: 'Hier is het' / 'A.U.B.'" }},
+                    { id: "ph14", front: "Mijn naam is...", back: "Меня зовут...", transcr: { ru: "[мэйн наам ис]", en: "[main naam is]", nl: "[mijn naam is]" }, note: { ru: "Представление себя", en: "Introducing yourself", nl: "Jezelf voorstellen" }},
+                    { id: "ph15", front: "Ik spreek geen Nederlands.", back: "Я не говорю по-нидерландски.", transcr: { ru: "[ик спрэйк хэйн нэйдэрлантс]", en: "[ik sprayk hayn nayderlants]", nl: "[Ik spreek geen Nederlands]" }, note: { ru: "Важная фраза", en: "Important phrase", nl: "Belangrijke zin" }},
+                    { id: "ph16", front: "Pardon?", back: "Прошу прощения?/Что?", transcr: { ru: "[пардон]", en: "[pardohn]", nl: "[pardon]" }, note: { ru: "Не расслышал/извините", en: "Pardon/Excuse me", nl: "Niet gehoord/excuses" }},
+                    
+                    // Эмоции и состояния (Emotions and states)
+                    { id: "ph17", front: "Ja.", back: "Да.", transcr: { ru: "[яа]", en: "[yaa]", nl: "[ja]" }, note: { ru: "Утверждение", en: "Affirmation", nl: "Bevestiging" }},
+                    { id: "ph18", front: "Nee.", back: "Нет.", transcr: { ru: "[нэй]", en: "[nay]", nl: "[nee]" }, note: { ru: "Отрицание", en: "Negation", nl: "Ontkenning" }},
+                    { id: "ph19", front: "Ik hou van jou.", back: "Я тебя люблю.", transcr: { ru: "[ик хау фан йау]", en: "[ik how fan yow]", nl: "[Ik hou van jou]" }, note: { ru: "Романтическое выражение", en: "Romantic expression", nl: "Romantische uitdrukking" }},
+                    { id: "ph20", front: "Wat is dat?", back: "Что это?", transcr: { ru: "[ват ис дат]", en: "[wat is dat]", nl: "[Wat is dat]" }, note: { ru: "Вопрос", en: "Question", nl: "Vraag" }},
+                    { id: "ph21", front: "Waar is...?", back: "Где находится...?", transcr: { ru: "[ваар ис]", en: "[vaar is]", nl: "[Waar is...]" }, note: { ru: "Вопрос о местоположении", en: "Location question", nl: "Locatie vraag" }},
+                    { id: "ph22", front: "Lekker!", back: "Вкусно! / Приятно!", transcr: { ru: "[лэкэр]", en: "[lekker]", nl: "[Lekker!]" }, note: { ru: "О еде или ощущении", en: "About food or feeling", nl: "Over eten of gevoel" }},
+                    { id: "ph23", front: "Kunt u mij helpen?", back: "Вы можете мне помочь?", transcr: { ru: "[кюнт ю мэй хэлпэн]", en: "[kunt oo may helpen]", nl: "[Kunt u mij helpen?]" }, note: { ru: "Вежливая просьба", en: "Polite request", nl: "Beleefd verzoek" }}
+                ]
+            }
+		};
+
+        const translations = {
+            ru: {
+                mainTitle: "🇳🇱 Тренажёр карточек - Нидерландский A1", confirmTopics: "Подтвердить выбор", toggleTopics: "Сменить темы",
+                activeTopicsPlaceholder: "Выберите хотя бы одну тему", activeTopicsLabel: "Темы", shuffle: "Перемешать", loop: "Зациклить",
+                progressLabel: "Карточка", progressOf: "из", welcomeTitle: "Добро пожаловать!",
+                welcomeText: "Выберите одну или несколько тем выше, чтобы начать обучение", prev: "← Назад", know: "Знаю", next: "Вперёд →",
+            },
+            en: {
+                mainTitle: "🇳🇱 Flashcard Trainer - Dutch A1", confirmTopics: "Confirm Selection", toggleTopics: "Change Topics",
+                activeTopicsPlaceholder: "Select at least one topic", activeTopicsLabel: "Topics", shuffle: "Shuffle", loop: "Loop",
+                progressLabel: "Card", progressOf: "of", welcomeTitle: "Welcome!",
+                welcomeText: "Select one or more topics above to start learning", prev: "← Back", know: "I Know", next: "Next →",
+            },
+            nl: {
+                mainTitle: "🇳🇱 Flitskaarttrainer - Nederlands A1", confirmTopics: "Selectie bevestigen", toggleTopics: "Verander onderwerpen",
+                activeTopicsPlaceholder: "Selecteer ten minste één onderwerp", activeTopicsLabel: "Onderwerpen", shuffle: "Schudden", loop: "Herhalen",
+                progressLabel: "Kaart", progressOf: "van", welcomeTitle: "Welkom!",
+                welcomeText: "Selecteer hierboven een of meer onderwerpen om te beginnen met leren", prev: "← Terug", know: "Ik weet", next: "Volgende →",
+            }
+        };
+
+        let state = {
+            selectedDecks: [], allCards: [], currentIndex: 0,
+            isFlipped: false, isShuffled: false, isReversed: false, isLooping: false, // Новое состояние
+            currentLanguage: 'ru', knownWords: {}, isTopicsSelectorOpen: true,
+        };
+
+        function init() {
+            loadState();
+            renderDeckSelector();
+            setupEventListeners();
+            applyTranslations();
+
+            // Обновляем видимость блока тем
+            document.querySelector('.deck-selector-container').classList.toggle('hidden', !state.isTopicsSelectorOpen);
+            document.getElementById('toggleTopicsBtn').classList.toggle('hidden', state.isTopicsSelectorOpen);
+
+            // Загружаем карточки при инициализации
+            updateCards();
+            updateUI();
+        }
+        
+        function loadState() {
+            state.currentLanguage = localStorage.getItem('appLanguage') || 'ru';
+            state.knownWords = JSON.parse(localStorage.getItem('knownWords') || '{}');
+            state.isLooping = localStorage.getItem('isLooping') === 'true';
+            state.isShuffled = localStorage.getItem('isShuffled') === 'true'; 
+            
+            // Если это первый запуск (нет сохраненных выбранных тем)
+            if (!localStorage.getItem('selectedDecks')) {
+                state.selectedDecks = ['phrases']; // выбираем 'Ходовые фразы' по умолчанию
+                state.isTopicsSelectorOpen = false; // скрываем блок тем
+                localStorage.setItem('selectedDecks', JSON.stringify(state.selectedDecks));
+                localStorage.setItem('isTopicsSelectorOpen', 'false'); // Сохраняем состояние видимости
+            } else {
+                // Загружаем сохраненные выбранные темы
+                state.selectedDecks = JSON.parse(localStorage.getItem('selectedDecks') || '[]');
+                // Загружаем состояние видимости блока тем
+                state.isTopicsSelectorOpen = localStorage.getItem('isTopicsSelectorOpen') === 'true';
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('confirmTopicsBtn').addEventListener('click', toggleTopicsView);
+            document.getElementById('toggleTopicsBtn').addEventListener('click', toggleTopicsView);
+            document.addEventListener('keydown', handleKeyboardControls);
+        }
+
+		function renderDeckSelector() {
+    const selector = document.getElementById('deckSelector');
+    selector.innerHTML = '';
+    
+    Object.keys(decks).forEach(key => {
+        const deck = decks[key];
+        const label = document.createElement('label');
+        label.className = 'deck-checkbox';
+        const deckTitle = deck.title[state.currentLanguage] || deck.title['ru'];
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = key;
+        checkbox.checked = state.selectedDecks.includes(key);
+        
+        // Добавляем обработчики и для label, и для checkbox
+        label.addEventListener('click', (e) => {
+            // Предотвращаем двойное срабатывание
+            if (e.target === checkbox) return;
+            e.preventDefault();
+            toggleDeck(key);
+        });
+
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            toggleDeck(key);
+        });
+
+        const span = document.createElement('span');
+        span.textContent = ` ${deckTitle} (${deck.cards.length})`;
+
+        if (checkbox.checked) {
+            label.classList.add('selected');
+        }
+
+        label.appendChild(checkbox);
+        label.appendChild(span);
+        selector.appendChild(label);
+    });
+
+    document.getElementById('confirmTopicsBtn').classList.toggle('hidden', 
+        state.selectedDecks.length === 0);
+}
+
+
+        function toggleTopicsView() {
+            state.isTopicsSelectorOpen = !state.isTopicsSelectorOpen;
+            localStorage.setItem('isTopicsSelectorOpen', state.isTopicsSelectorOpen);
+            
+            document.querySelector('.deck-selector-container').classList.toggle('hidden', !state.isTopicsSelectorOpen);
+            document.getElementById('toggleTopicsBtn').classList.toggle('hidden', state.isTopicsSelectorOpen);
+            
+            if (state.isTopicsSelectorOpen && state.selectedDecks.length > 0) {
+                updateCards();
+            }
+        }
+
+		function toggleDeck(deckKey) {
+    const index = state.selectedDecks.indexOf(deckKey);
+    
+    if (index > -1) {
+        state.selectedDecks.splice(index, 1);
+    } else {
+        state.selectedDecks.push(deckKey);
+    }
+
+    // Обновляем состояние всех чекбоксов
+    const selector = document.getElementById('deckSelector');
+    const labels = selector.querySelectorAll('.deck-checkbox');
+    localStorage.setItem('selectedDecks', JSON.stringify(state.selectedDecks));
+
+    
+    labels.forEach(label => {
+        const input = label.querySelector('input[type="checkbox"]');
+        if (input.value === deckKey) {
+            const isChecked = state.selectedDecks.includes(deckKey);
+            input.checked = isChecked;
+            label.classList.toggle('selected', isChecked);
+        }
+    });
+
+    document.getElementById('confirmTopicsBtn').classList.toggle('hidden', 
+        state.selectedDecks.length === 0);
+
+    updateCards();
+}
+        
+        function updateCards() {
+            const baseCards = [];
+            state.selectedDecks.forEach(key => {
+                const cardsWithDeckKey = decks[key].cards.map(card => ({...card, deckKey: key, uniqueId: `${key}_${card.id}`}));
+                baseCards.push(...cardsWithDeckKey);
+            });
+
+            if (state.isShuffled) {
+                const knownCards = [], unknownCards = [];
+                // FIX: корректное разделение на известные и неизвестные карты
+                baseCards.forEach(card => {
+                    if (state.knownWords[card.uniqueId]) knownCards.push(card);
+                    else unknownCards.push(card);
+                });
+
+                shuffleArray(knownCards); shuffleArray(unknownCards);
+
+                const weightedCards = [];
+                while(unknownCards.length > 0 || knownCards.length > 0) {
+                    const unknownChunk = unknownCards.splice(0, 5);
+                    const knownChunk = knownCards.splice(0, 1);
+                    const combinedChunk = [...unknownChunk, ...knownChunk];
+                    shuffleArray(combinedChunk);
+                    weightedCards.push(...combinedChunk);
+                }
+                state.allCards = weightedCards;
+            } else { state.allCards = baseCards; }
+
+            state.currentIndex = 0; state.isFlipped = false; updateUI();
+        }
+
+        function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
+
+        function toggleShuffle() {
+            state.isShuffled = !state.isShuffled;
+            localStorage.setItem('isShuffled', state.isShuffled);
+            updateCards();
+        }
+
+        // Блок 1: Включение/выключение зацикливания
+        function toggleLoop() {
+            state.isLooping = !state.isLooping;
+            localStorage.setItem('isLooping', state.isLooping);
+            updateUI(); // Обновляем UI, чтобы скрыть/показать кнопку и обновить навигацию
+        }
+
+        // FIX: теперь переключаем направление и обновляем текст кнопки
+        function toggleDirection() { 
+            state.isReversed = !state.isReversed; 
+            state.isFlipped = false; 
+            applyTranslations(); // обновляем надписи, включая directionBtn
+            updateUI(); 
+        }
+
+        function setLanguage(lang) {
+            state.currentLanguage = lang;
+            localStorage.setItem('appLanguage', lang);
+            applyTranslations(); renderDeckSelector(); updateUI();
+        }
+
+        function applyTranslations() {
+            const t = translations[state.currentLanguage];
+            document.getElementById('main-title').textContent = t.mainTitle;
+            document.getElementById('confirmTopicsBtn').textContent = t.confirmTopics;
+            document.getElementById('toggleTopicsBtn').textContent = t.toggleTopics;
+            document.getElementById('shuffleBtn').innerHTML = `🔀 ${t.shuffle}`;
+            document.getElementById('loopBtn').innerHTML = `🔁 ${t.loop}`; // Текст для новой кнопки
+            // directionBtn теперь отражает состояние isReversed
+            document.getElementById('directionBtn').textContent = state.isReversed ? 'RU → NL' : 'NL → RU';
+            document.getElementById('prevBtn').textContent = t.prev;
+            document.getElementById('nextBtn').textContent = t.next;
+            
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === state.currentLanguage);
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('shuffleBtn').classList.toggle('active', state.isShuffled);
+            document.getElementById('loopBtn').classList.toggle('active', state.isLooping); // Обновляем класс для кнопки зацикливания
+            updateActiveTopics();
+            updateProgress();
+            renderCard();
+        }
+
+        function updateActiveTopics() {
+            const topicsEl = document.getElementById('activeTopics');
+            const t = translations[state.currentLanguage];
+            if (state.selectedDecks.length === 0) { topicsEl.innerHTML = t.activeTopicsPlaceholder; }
+            else {
+                const titles = state.selectedDecks.map(key => decks[key].title[state.currentLanguage] || decks[key].title['ru']);
+                topicsEl.innerHTML = `<strong>${t.activeTopicsLabel}:</strong> ${titles.join(' • ')}`;
+            }
+        }
+
+        function updateProgress() {
+            const progressEl = document.getElementById('progress');
+            const t = translations[state.currentLanguage];
+            if (state.allCards.length > 0) { progressEl.textContent = `${t.progressLabel} ${state.currentIndex + 1} ${t.progressOf} ${state.allCards.length}`; }
+            else { progressEl.textContent = ''; }
+        }
+        
+        function renderCard() {
+            const container = document.getElementById('cardContainer');
+            const navigation = document.getElementById('navigation');
+            const t = translations[state.currentLanguage];
+            const lang = state.currentLanguage;
+
+            if (state.allCards.length === 0) {
+                container.innerHTML = `<div class="empty-state"><h2>${t.welcomeTitle}</h2><p>${t.welcomeText}</p></div>`;
+                navigation.style.display = 'none'; return;
+            }
+
+            navigation.style.display = 'flex';
+            const card = state.allCards[state.currentIndex];
+            
+            const frontText = state.isReversed ? card.back : card.front;
+            const backText = state.isReversed ? card.front : card.back;
+            
+            // Блок 3: Выбираем транскрипцию и заметку в зависимости от языка
+            const transcription = (card.transcr && card.transcr[lang]) || '';
+            const noteText = (card.note && card.note[lang]) || '';
+
+
+            // Кнопка "Знаю" добавляется только если включено зацикливание и карточка НЕ перевёрнута
+            const knowButtonHTML = (state.isLooping && !state.isFlipped)
+                ? `<button class="card-know-btn" onclick="markAsKnown(event)">${t.know}</button>`
+                : '';
+
+            container.innerHTML = `
+                <div class="card ${state.isFlipped ? 'flipped' : ''}" onclick="flipCard()">
+                    <div class="card-face card-front">
+                        ${knowButtonHTML}
+                        <div class="card-indicator">${state.isReversed ? 'RU' : 'NL'}</div>
+                        <div class="card-text">${frontText}</div>
+                        ${!state.isReversed && transcription ? `<div class="card-transcription">${transcription}</div>` : ''}
+                    </div>
+                    <div class="card-face card-back">
+                        <div class="card-indicator">${state.isReversed ? 'NL' : 'RU'}</div>
+                        <div class="card-translation">${backText}</div>
+                        ${state.isReversed && transcription ? `<div class="card-transcription" style="color: #eee;">${transcription}</div>` : ''}
+                        ${noteText ? `<div class="card-note">${noteText}</div>` : ''}
+                    </div>
+                </div>`;
+            
+            // Блок 1: Кнопки навигации не отключаются в режиме зацикливания
+            document.getElementById('prevBtn').disabled = !state.isLooping && state.currentIndex === 0;
+            document.getElementById('nextBtn').disabled = !state.isLooping && state.currentIndex === state.allCards.length - 1;
+        }
+
+        function flipCard() { if (state.allCards.length > 0) { state.isFlipped = !state.isFlipped; document.querySelector('.card').classList.toggle('flipped', state.isFlipped); } }
+
+        function markAsKnown(event) {
+            event.stopPropagation(); // Блок 2: Останавливаем переворот карточки при клике на кнопку
+            if (state.allCards.length === 0) return;
+            const currentCard = state.allCards[state.currentIndex];
+            state.knownWords[currentCard.uniqueId] = true;
+            localStorage.setItem('knownWords', JSON.stringify(state.knownWords));
+            nextCard();
+        }
+
+        function nextCard() {
+            if (state.allCards.length === 0) return;
+            if (state.currentIndex < state.allCards.length - 1) { state.currentIndex++; } 
+            else if (state.isLooping) { state.currentIndex = 0; } // Блок 1: Если зациклено, идем на первую
+            state.isFlipped = false; updateUI();
+        }
+
+        function prevCard() {
+            if (state.allCards.length === 0) return;
+            if (state.currentIndex > 0) { state.currentIndex--; } 
+            else if (state.isLooping) { state.currentIndex = state.allCards.length - 1; } // Блок 1: Если зациклено, идем на последнюю
+            state.isFlipped = false; updateUI();
+        }
+
+        function handleKeyboardControls(e) {
+            if (state.allCards.length === 0 || e.target.tagName === 'INPUT') return;
+            const keyMap = { ' ': flipCard, 'Enter': flipCard, 'ArrowLeft': prevCard, 'ArrowRight': nextCard };
+            if (keyMap[e.key]) { e.preventDefault(); keyMap[e.key](); }
+            if (state.isLooping && (e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'к')) {
+                e.preventDefault(); markAsKnown(e); // Передаем 'e', чтобы работал stopPropagation
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
